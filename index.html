@@ -1,0 +1,708 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  BookOpen, FileQuestion, Target, CheckCircle2, 
+  XCircle, Moon, Sun, Home, Settings, ArrowRight,
+  RefreshCw, Play, Trophy, AlertTriangle, Info
+} from 'lucide-react';
+
+// قاعدة بيانات شاملة مستخرجة من ملخصات الأستاذ حسن سلهب
+const database = {
+  grammar: [
+    {
+      id: 'g1',
+      title: 'المجرورات (بحرف الجر والإضافة)',
+      content: `
+        يجر الاسم في حالتين: أن يسبقه حرف جر، أو أن يكون مضافاً إليه.
+        
+        1. المجرور بحرف الجر:
+        - حروف الجر: (من، إلى، عن، على، في، الكاف، اللام، الباء، الواو، التاء، رُبّ، مُذ، مُنذ، حتى).
+        - علامات الجر: الكسرة (مفرد، جمع تكسير، مؤنث سالم)، الياء (مثنى، جمع مذكر سالم، أسماء خمسة).
+        - ملاحظات: (رُبّ) تفيد التكثير أو التقليل ويجر ما بعدها. (مذ/منذ) حروف جر إذا جاء بعدها اسم مجرور.
+        
+        2. المجرور بالإضافة:
+        - الإضافة: إضافة اسم (مضاف) إلى اسم آخر (مضاف إليه).
+        - المضاف يعرب حسب موقعه وهو دائماً نكرة وتحذف منه النون والتنوين.
+        - المضاف إليه يعرب مضاف إليه مجرور، وقد يكون ظاهراً أو ضميراً.
+        - أسماء تلازم الإضافة: (أولو، ذو، ذات، كلا، كلتا، لدى، لدن، عند، سوى، بين، مع، بعض، غير، وحد).
+        - تمييز الأعداد من 3-10 وتمييز المائة والألف يعربان (مضاف إليه مجرور).
+      `,
+      questions: [
+        { q: "سافرت من أبوظبي إلى دبي. ما المعنى الذي أفاده حرف الجر (من)؟", options: ["الظرفية", "انتهاء الغاية", "ابتداء الغاية", "الاستعانة"], answer: 2, exp: "من تفيد ابتداء الغاية المكانية أو الزمانية." },
+        { q: "ما رأيت محمداً (مذ) سفره. ما إعراب سفره؟", options: ["مفعول به", "اسم مجرور", "مضاف إليه", "فاعل"], answer: 1, exp: "مذ/منذ إذا جاء بعدها اسم مجرور تعتبر حروف جر." },
+        { q: "نجح (كلا) الطالبين. ما إعراب الطالبين؟", options: ["مضاف إليه مجرور بالياء", "اسم مجرور", "مفعول به", "فاعل"], answer: 0, exp: "كلا وكلتا من الأسماء الملازمة للإضافة، وما بعدها مضاف إليه." },
+        { q: "فاز (تسعةُ) طلابٍ. ما إعراب كلمة طلابٍ؟", options: ["تمييز منصوب", "مضاف إليه مجرور", "اسم مجرور", "نعت"], answer: 1, exp: "تمييز الأعداد من 3 إلى 10 يأتي جمعاً مجروراً بالإضافة." }
+      ]
+    },
+    {
+      id: 'g2',
+      title: 'النعت (التوابع)',
+      content: `
+        النعت: تابع يذكر بعد اسم قبله لبيان صفة فيه.
+        يطابق النعت منعوته في: الإعراب، العدد، النوع، التعيين (التنكير والتعريف).
+        
+        أنواع النعت:
+        1. مفرد: ما ليس جملة ولا شبه جملة (قد يكون مشتقاً أو جامداً).
+        2. جملة: (اسمية أو فعلية) يشترط أن يكون المنعوت نكرة، وتشتمل الجملة على ضمير يعود عليه. (الجمل بعد النكرات صفات).
+        3. شبه جملة: (جار ومجرور أو ظرف).
+        
+        النعت السببي: 
+        يدل على صفة في اسم يأتي بعده له علاقة بالمنعوت. مثل: (جاء طالبٌ مجتهدٌ أخوهُ).
+        - ما بعد النعت السببي يعرب (فاعلاً) إذا كان النعت اسم فاعل/صفة مشبهة، ويعرب (نائب فاعل) إذا كان اسم مفعول.
+      `,
+      questions: [
+        { q: "شاهدت عصفوراً (فوق الشجرة). ما نوع النعت؟", options: ["مفرد", "جملة اسمية", "شبه جملة", "لا يوجد نعت"], answer: 2, exp: "عصفوراً نكرة، وجاء بعدها شبه جملة (فوق الشجرة) فهي في محل نصب نعت." },
+        { q: "سلمت على الطالب (المجتهد). ما إعراب المجتهد؟", options: ["بدل", "نعت مجرور", "مضاف إليه", "توكيد"], answer: 1, exp: "نعت مفرد يطابق المنعوت (الطالب) في الجر والتعريف والتذكير والإفراد." },
+        { q: "جاء طالبٌ (مجتهدٌ أخوه). ما إعراب أخوه؟", options: ["مضاف إليه", "نعت", "فاعل لاسم الفاعل", "بدل"], answer: 2, exp: "مجتهد نعت سببي (اسم فاعل)، فيرفع ما بعده على أنه فاعل." }
+      ]
+    },
+    {
+      id: 'g3',
+      title: 'العطف (التوابع)',
+      content: `
+        العطف: تابع يتوسط بينه وبين متبوعه أحد حروف العطف.
+        حروف العطف: (و، ف، ثم، أو، أم، إما، بل، لا، لكن، حتى).
+        
+        معاني أهم الحروف:
+        - (و): الجمع والمشاركة.
+        - (ف): الترتيب والتعقيب (السرعة).
+        - (ثم): الترتيب والتراخي (طول المدة).
+        - (أو): الشك أو التخيير أو التقسيم.
+        - (بل): الإضراب (إثبات الحكم لما بعده ونفيه عما قبله).
+        - (لا): إثبات الحكم لما قبلها ونفيه عما بعدها.
+        
+        تنبيه: لا يجوز العطف على ضمير رفع متصل إلا بوجود فاصل (مثل الضمير المنفصل).
+      `,
+      questions: [
+        { q: "قرأت القصة (ثم) الرواية. ماذا تفيد 'ثم'؟", options: ["الترتيب والسرعة", "التخيير", "الترتيب والتراخي", "المشاركة"], answer: 2, exp: "ثم تفيد الترتيب بوجود مهلة زمنية (تراخي)." },
+        { q: "مررت بالأخيار (لا) الأشرار. ماذا تفيد 'لا'؟", options: ["النهي", "العطف وتثبت الحكم لما قبلها وتنفيه عما بعدها", "الإضراب", "التسوية"], answer: 1, exp: "لا هنا حرف عطف أثبت المرور للأخيار ونفاه عن الأشرار." },
+        { q: "قام زيد (بل) عمرو. ماذا تفيد 'بل'؟", options: ["التسوية", "العطف والترتيب", "الإضراب", "التخيير"], answer: 2, exp: "بل تفيد الإضراب، أي إثبات الحكم للاسم المعطوف فقط (عمرو)." }
+      ]
+    },
+    {
+      id: 'g4',
+      title: 'التوكيد (التوابع)',
+      content: `
+        التوكيد: تابع يذكر لتقوية المعنى ودفع الشك.
+        نوعان:
+        1. توكيد لفظي: بتكرار اللفظ (اسماً أو فعلاً أو حرفاً أو جملة). (مثل: الله أكبر، الله أكبر).
+        2. توكيد معنوي: بألفاظ معينة (نفس، عين، كل، جميع، كلا، كلتا، كافة، عامة، أجمع).
+        
+        شروط التوكيد المعنوي:
+        - أن تتصل الألفاظ (عدا أجمع ومشتقتها) بضمير يعود على المؤكد ويطابقه.
+        - إذا لم تتصل بضمير، تعرب حسب موقعها في الجملة (مثل: نفس المؤمن مطمئنة - مبتدأ).
+      `,
+      questions: [
+        { q: "حضر المعلمون (كلهم). ما إعراب كلهم؟", options: ["مبتدأ", "توكيد معنوي مرفوع", "بدل", "توكيد لفظي"], answer: 1, exp: "كلهم توكيد معنوي للمعلمون (مرفوع) واتصلت بضمير." },
+        { q: "جاءت الفتاتان (كلتاهما). ما إعراب كلتاهما؟", options: ["توكيد معنوي مرفوع بالألف", "فاعل", "بدل", "توكيد لفظي"], answer: 0, exp: "توكيد معنوي ملحق بالمثنى، يرفع بالألف ويؤكد الفتاتان." },
+        { q: "(نفسُ) المؤمن مطمئنة. ما إعراب نفس؟", options: ["توكيد معنوي", "بدل", "مبتدأ مرفوع", "نعت"], answer: 2, exp: "لم تتصل بضمير يعود على مؤكد قبلها، لذلك تعرب حسب موقعها (مبتدأ)." }
+      ]
+    },
+    {
+      id: 'g5',
+      title: 'البدل (التوابع)',
+      content: `
+        البدل: تابع يذكر بعد اسم قبله (المبدل منه) يوضحه ويبين مقصوده بلا واسطة.
+        
+        أقسام البدل:
+        1. البدل المطابق (كل من كل): يتطابق البدل والمبدل منه.
+           - أشكاله: (وظيفة/مهنة + اسم صاحبها)، (لقب/صفة + اسم صاحبها)، (كنية + اسم صاحبها)، (اسم إشارة + اسم معرف بأل).
+        2. بدل بعض من كل: البدل جزء حقيقي/مادي من المبدل منه. يجب أن يتصل بضمير يعود على المبدل منه. (قرأت الكتاب نصفه).
+        3. بدل اشتمال: البدل مما يشتمل عليه المبدل منه (شيء معنوي)، وليس جزءاً مادياً. يتصل بضمير. (أعجبني زيدٌ خلقهُ).
+      `,
+      questions: [
+        { q: "عدل الخليفة (عمر). ما نوع البدل؟", options: ["بدل اشتمال", "بدل بعض من كل", "بدل مطابق", "لا يوجد بدل"], answer: 2, exp: "اللقب (الخليفة) جاء بعده اسم العلم (عمر) فيعرب بدلاً مطابقاً." },
+        { q: "أعجبني زيد (خلقه). ما نوع البدل؟", options: ["بدل اشتمال", "بدل مطابق", "بدل بعض من كل", "نعت"], answer: 0, exp: "الخلق شيء معنوي يشتمل عليه زيد، وليس جزءاً مادياً منه، واتصل بضمير يعود عليه." },
+        { q: "إن (هؤلاء) المعلمون مخلصون. ما إعراب هؤلاء؟", options: ["بدل منصوب", "اسم إن مبني في محل نصب", "مبتدأ", "منادى"], answer: 1, exp: "احذر الفخ! هؤلاء اسم إشارة مبني في محل نصب اسم إن. المعلمون هي البدل." }
+      ]
+    }
+  ],
+  rhetoric: [
+    {
+      id: 'r1',
+      title: 'التشبيه المفرد (علم البيان)',
+      content: `
+        التشبيه المفرد: تشبيه لفظ بلفظ، لا يتركب من أجزاء.
+        أركانه: المشبه، المشبه به، أداة التشبيه، وجه الشبه.
+        
+        أنواعه:
+        1. تشبيه تام (مرسل مفصل): ذكرت فيه كل الأركان. (أنت كالليث في الشجاعة).
+        2. تشبيه بليغ (مؤكد مجمل): حذفت الأداة ووجه الشبه. (الأم مدرسة).
+        3. تشبيه مرسل (مجمل): ذكرت الأداة وحذف وجه الشبه. (إن هم إلا كالأنعام).
+        4. تشبيه مؤكد (مفصل): حذفت الأداة وذكر وجه الشبه. (محمد صقر في حدة النظر).
+      `,
+      questions: [
+        { q: "أنت (كالليث) (في الشجاعة). ما نوع التشبيه؟", options: ["بليغ", "تام (مرسل مفصل)", "ضمني", "مجمل"], answer: 1, exp: "ذكرت فيه الأركان الأربعة: المشبه (أنت)، الأداة (ك)، المشبه به (الليث)، وجه الشبه (الشجاعة)." },
+        { q: "إنما المؤمنون إخوة. ما نوع التشبيه؟", options: ["تام", "مرسل", "بليغ", "ضمني"], answer: 2, exp: "المشبه (المؤمنون) والمشبه به (إخوة). حذفت الأداة ووجه الشبه فهو تشبيه بليغ." },
+        { q: "كم وجوه مثل النهار ضياءً. حدد نوع التشبيه.", options: ["بليغ", "تام (مرسل مفصل)", "تمثيلي", "مؤكد مجمل"], answer: 1, exp: "المشبه (وجوه)، الأداة (مثل)، المشبه به (النهار)، وجه الشبه (ضياءً). الأركان مكتملة." }
+      ]
+    },
+    {
+      id: 'r2',
+      title: 'التشبيه المركب (التمثيلي والضمني)',
+      content: `
+        التشبيه المركب: تشبيه حالة أو صورة بحالة أو صورة أخرى.
+        
+        1. التشبيه التمثيلي: تشبيه مشهد بمشهد، وجه الشبه صورة منتزعة من عدة أمور. يكثر فيه استخدام الأداة ويحتوي على حركة/لون.
+        - مثال: (مثل الذين حملوا التوراة ثم لم يحملوها كمثل الحمار يحمل أسفاراً). شبه حالة بحالة.
+        
+        2. التشبيه الضمني: لا يوضع في صورة التشبيه العادية ولا توجد فيه أداة. يلمح من المعنى، الشطر الثاني غالباً يكون حكمة وبرهاناً.
+        - مثال: (من يهن يسهل الهوان عليه .. ما لجرح بميت إيلام).
+      `,
+      questions: [
+        { q: "كأن مثار النقع فوق رؤوسنا .. وأسيافنا ليل تهاوى كواكبه. ما نوع التشبيه؟", options: ["تمثيلي", "ضمني", "بليغ", "مفرد"], answer: 0, exp: "تشبيه مشهد بمشهد (غبار المعركة والسيوف تلمع فيه بمشهد الليل والنجوم تتهاوى فيه)، مع وجود الأداة (كأن)." },
+        { q: "سيذكرني قومي إذا جد جدهم .. وفي الليلة الظلماء يفتقد البدر. ما نوع التشبيه؟", options: ["مفرد تام", "تمثيلي", "ضمني", "استعارة"], answer: 2, exp: "لم يصرح بالتشبيه ولم يضع أداة، وجاء الشطر الثاني كحكمة ودليل (البدر يفتقد في الظلام كافتقادهم للشاعر)." },
+        { q: "لا تنكري عطل الكريم من الغنى .. فالسيل حرب للمكان العالي. ما نوع التشبيه؟", options: ["ضمني", "تمثيلي", "بليغ", "مؤكد"], answer: 0, exp: "تشبيه ضمني، شبه خلو الكريم من المال بخلو قمة الجبل من ماء السيل، والشطر الثاني جاء كحكمة مؤكدة." }
+      ]
+    },
+    {
+      id: 'r3',
+      title: 'الاستعارة (علم البيان)',
+      content: `
+        الاستعارة: تشبيه بليغ حذف أحد طرفيه (المشبه أو المشبه به).
+        
+        1. الاستعارة المكنية: ذكر المشبه وحذف المشبه به، ورُمز إليه بشيء من لوازمه.
+        - تشخيص: إذا كان المشبه به المحذوف إنساناً. (والصبح إذا تنفس - شبه الصبح بإنسان يتنفس).
+        - تجسيم: إذا كان المشبه به غير إنسان. (وإذا المنية أنشبت أظفارها - شبه الموت بحيوان مفترس).
+        
+        2. الاستعارة التصريحية: حذف المشبه، وصرح بلفظ المشبه به.
+        - (كتاب أنزلناه إليك لتخرج الناس من الظلمات إلى النور - شبه الضلال بالظلمات والهدى بالنور).
+        - الغرض منها دائماً: توضيح المعنى وتقريبه للذهن.
+      `,
+      questions: [
+        { q: "قال الحجاج: (إني أرى رؤوساً قد أينعت وحان قطافها). ما نوع الصورة؟", options: ["استعارة مكنية / تجسيم", "استعارة تصريحية", "تشبيه ضمني", "كناية"], answer: 0, exp: "شبه رؤوس الرجال بالثمار (تجسيم)، وحذف المشبه به (الثمار) وأبقى من لوازمه (أينعت/قطافها)." },
+        { q: "قال تعالى: (واعتصموا بحبل الله جميعاً). ما نوع الصورة في كلمة 'بحبل'؟", options: ["استعارة مكنية", "تشبيه بليغ", "استعارة تصريحية", "استعارة تمثيلية"], answer: 2, exp: "شبه الدين بالحبل، فحذف المشبه (الدين) وصرح بالمشبه به (الحبل)." },
+        { q: "نسي الطين ساعة أنه طين. ما الصورة في كلمة 'الطين'؟", options: ["كناية", "استعارة مكنية", "استعارة تصريحية", "تشبيه ضمني"], answer: 2, exp: "شبه الإنسان بالطين، فحذف المشبه (الإنسان) وصرح بالمشبه به (الطين)." }
+      ]
+    },
+    {
+      id: 'r4',
+      title: 'المحسنات البديعية المعنوية واللفظية',
+      content: `
+        المحسنات البديعية نوعان:
+        
+        أولاً: المعنوية (لتوضيح المعنى وتأكيده):
+        1. الطباق: الجمع بين الكلمة وضدها.
+           - طباق إيجاب (أبيض/أسود). (وتحسبهم أيقاظاً وهم رقود).
+           - طباق سلب (يعلمون/لا يعلمون). (استخدام أداة نفي/نهي).
+        2. المقابلة: الجمع بين جملتين متضادتين. (فليضحكوا قليلاً وليبكوا كثيراً).
+        
+        ثانياً: اللفظية (لإعطاء جرس موسيقي):
+        1. الجناس: تشابه لفظين نطقا واختلافهما معنى.
+           - تام: (صليت المغرب في المغرب).
+           - ناقص: يختلف في نوع/عدد/شكل/ترتيب الحروف. (تقهر/تنهر).
+        2. السجع: اتفاق نهايات الفواصل في النثر. (أعط منفقاً خلفاً، وممسكاً تلفاً).
+        3. التصريع: اتفاق آخر حرف في الشطرين بالبيت الأول في الشعر.
+        4. حسن التقسيم: تقسيم بيت الشعر لمقاطع متساوية.
+      `,
+      questions: [
+        { q: "قال تعالى: (يستخفون من الناس ولا يستخفون من الله). ما نوع المحسن البديعي؟", options: ["طباق إيجاب", "طباق سلب", "مقابلة", "جناس ناقص"], answer: 1, exp: "الجمع بين الفعل ونفيه (يستخفون / لا يستخفون) يسمى طباق سلب." },
+        { q: "الوقت من (ذهب) وقد (ذهب). ما المحسن البديعي هنا؟", options: ["جناس تام", "جناس ناقص", "تصريع", "سجع"], answer: 0, exp: "تشابه اللفظان تماماً في الحروف واختلفا في المعنى (الذهب المعدن، وذهب أي مضى)." },
+        { q: "أرق على أرق ومثلي يأرقُ .. وجوى يزيد وعبرة تترقرقُ. ما المحسن في هذا البيت الأول؟", options: ["سجع", "حسن تقسيم", "طباق", "تصريع"], answer: 3, exp: "اتفاق قافية الشطر الأول (يأرقُ) مع الثاني (تترقرقُ) في البيت الأول من القصيدة يسمى تصريعاً." }
+      ]
+    }
+  ]
+};
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('home'); // home, grammar, rhetoric, quiz-builder, quiz-active
+  const [selectedLesson, setSelectedLesson] = useState(null);
+  const [darkMode, setDarkMode] = useState(true);
+  
+  // Quiz Builder States
+  const [selectedRules, setSelectedRules] = useState([]);
+  const [quizQuestions, setQuizQuestions] = useState([]);
+  
+  // Endless Practice States
+  const [endlessQuestion, setEndlessQuestion] = useState(null);
+  const [endlessOptions, setEndlessOptions] = useState([]);
+  const [showEndlessFeedback, setShowEndlessFeedback] = useState(null); // null, 'correct', 'wrong'
+  
+  // Active Quiz States
+  const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
+  const [quizScore, setQuizScore] = useState(0);
+  const [quizFinished, setQuizFinished] = useState(false);
+  const [quizAnswers, setQuizAnswers] = useState([]); 
+  
+  // Mastery Tracker
+  const [mastery, setMastery] = useState({});
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
+  const loadRandomEndlessQuestion = (lesson) => {
+    if (!lesson || lesson.questions.length === 0) return;
+    const randomIdx = Math.floor(Math.random() * lesson.questions.length);
+    const q = lesson.questions[randomIdx];
+    
+    // Shuffle options
+    const shuffled = q.options.map((opt, i) => ({ text: opt, originalIdx: i }))
+                              .sort(() => Math.random() - 0.5);
+    
+    setEndlessOptions(shuffled);
+    setEndlessQuestion(q);
+    setShowEndlessFeedback(null);
+  };
+
+  const handleEndlessAnswer = (selectedOriginalIdx) => {
+    if (showEndlessFeedback) return; 
+    
+    const isCorrect = selectedOriginalIdx === endlessQuestion.answer;
+    setShowEndlessFeedback(isCorrect ? 'correct' : 'wrong');
+    
+    // Update Mastery Tracking
+    setMastery(prev => {
+      const current = prev[selectedLesson.id] || { correct: 0, wrong: 0 };
+      return {
+        ...prev,
+        [selectedLesson.id]: {
+          correct: current.correct + (isCorrect ? 1 : 0),
+          wrong: current.wrong + (isCorrect ? 0 : 1)
+        }
+      };
+    });
+
+    setTimeout(() => {
+      loadRandomEndlessQuestion(selectedLesson);
+    }, 4000); 
+  };
+
+  const handleToggleRule = (ruleId) => {
+    setSelectedRules(prev => 
+      prev.includes(ruleId) 
+        ? prev.filter(id => id !== ruleId)
+        : [...prev, ruleId]
+    );
+  };
+
+  const startQuiz = () => {
+    if (selectedRules.length === 0) return;
+    
+    let allQuestions = [];
+    selectedRules.forEach(id => {
+      const lesson = [...database.grammar, ...database.rhetoric].find(l => l.id === id);
+      if (lesson) {
+        const qsWithContext = lesson.questions.map(q => ({...q, ruleTitle: lesson.title, ruleId: id}));
+        allQuestions = [...allQuestions, ...qsWithContext];
+      }
+    });
+
+    allQuestions.sort(() => Math.random() - 0.5);
+    
+    const processedQuestions = allQuestions.map(q => {
+      const shuffledOpts = q.options.map((opt, i) => ({ text: opt, originalIdx: i })).sort(() => Math.random() - 0.5);
+      return { ...q, displayOptions: shuffledOpts };
+    });
+
+    setQuizQuestions(processedQuestions);
+    setCurrentQuizIndex(0);
+    setQuizScore(0);
+    setQuizFinished(false);
+    setQuizAnswers([]);
+    setActiveTab('quiz-active');
+  };
+
+  const handleQuizAnswer = (selectedOriginalIdx) => {
+    const q = quizQuestions[currentQuizIndex];
+    const isCorrect = selectedOriginalIdx === q.answer;
+    
+    if (isCorrect) setQuizScore(prev => prev + 1);
+    
+    setQuizAnswers(prev => [...prev, {
+      question: q,
+      selectedOriginalIdx,
+      isCorrect
+    }]);
+
+    if (currentQuizIndex + 1 < quizQuestions.length) {
+      setCurrentQuizIndex(prev => prev + 1);
+    } else {
+      setQuizFinished(true);
+    }
+  };
+
+  const renderHome = () => (
+    <div className="flex flex-col items-center justify-center space-y-12 animate-in fade-in zoom-in duration-500 py-10">
+      <div className="relative w-full max-w-3xl text-center space-y-6">
+        <div className="inline-block p-4 bg-blue-100 dark:bg-blue-900/30 rounded-3xl mb-4 text-blue-600 dark:text-blue-400 shadow-inner">
+           <Target size={60} strokeWidth={1.5} />
+        </div>
+        <h1 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
+          المراجعة الوزارية الشاملة
+        </h1>
+        <p className="text-xl md:text-2xl text-gray-700 dark:text-gray-300 font-medium">
+          النحو والبلاغة - الصف الثاني عشر 
+        </p>
+        <p className="text-md text-gray-500 dark:text-gray-400 bg-white/50 dark:bg-slate-800/50 inline-block px-6 py-2 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm">
+          مستخرجة من مذكرات الأستاذ حسن سلهب
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
+        <button onClick={() => setActiveTab('grammar')} className="group flex flex-col items-center p-8 bg-white dark:bg-slate-800 rounded-3xl shadow-xl hover:shadow-2xl transition-all border border-slate-100 dark:border-slate-700 hover:-translate-y-2 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-full h-1 bg-blue-500"></div>
+          <div className="p-5 bg-blue-50 dark:bg-blue-900/20 rounded-2xl mb-6 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-300">
+            <BookOpen size={48} strokeWidth={1.5} />
+          </div>
+          <h2 className="text-2xl font-black mb-3 dark:text-white">قواعد النحو</h2>
+          <p className="text-center text-gray-500 dark:text-gray-400">المجرورات، والتوابع بأنواعها (النعت، العطف، التوكيد، البدل).</p>
+        </button>
+
+        <button onClick={() => setActiveTab('rhetoric')} className="group flex flex-col items-center p-8 bg-white dark:bg-slate-800 rounded-3xl shadow-xl hover:shadow-2xl transition-all border border-slate-100 dark:border-slate-700 hover:-translate-y-2 relative overflow-hidden">
+           <div className="absolute top-0 right-0 w-full h-1 bg-purple-500"></div>
+          <div className="p-5 bg-purple-50 dark:bg-purple-900/20 rounded-2xl mb-6 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform duration-300">
+            <Target size={48} strokeWidth={1.5} />
+          </div>
+          <h2 className="text-2xl font-black mb-3 dark:text-white">علوم البلاغة</h2>
+          <p className="text-center text-gray-500 dark:text-gray-400">التشبيه، الاستعارة، والمحسنات البديعية (اللفظية والمعنوية).</p>
+        </button>
+
+        <button onClick={() => setActiveTab('quiz-builder')} className="group flex flex-col items-center p-8 bg-white dark:bg-slate-800 rounded-3xl shadow-xl hover:shadow-2xl transition-all border border-slate-100 dark:border-slate-700 hover:-translate-y-2 relative overflow-hidden">
+           <div className="absolute top-0 right-0 w-full h-1 bg-emerald-500"></div>
+          <div className="p-5 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl mb-6 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform duration-300">
+            <FileQuestion size={48} strokeWidth={1.5} />
+          </div>
+          <h2 className="text-2xl font-black mb-3 dark:text-white">الكويز الشامل</h2>
+          <p className="text-center text-gray-500 dark:text-gray-400">اختر القواعد وصمم اختبارك الوزاري المخصص للتدريب.</p>
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderCatalog = (type) => {
+    const list = type === 'grammar' ? database.grammar : database.rhetoric;
+    const title = type === 'grammar' ? 'قواعد النحو المقررة' : 'قواعد البلاغة المقررة';
+
+    return (
+      <div className="w-full max-w-4xl mx-auto animate-in slide-in-from-bottom-8 duration-500">
+        <div className="flex items-center gap-4 mb-10 border-b-2 border-slate-200 dark:border-slate-700 pb-4">
+          <button onClick={() => setActiveTab('home')} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
+            <ArrowRight className="rtl:rotate-0" />
+          </button>
+          <h2 className="text-3xl font-black dark:text-white">{title}</h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {list.map(lesson => (
+            <button 
+              key={lesson.id}
+              onClick={() => {
+                setSelectedLesson(lesson);
+                loadRandomEndlessQuestion(lesson);
+                setActiveTab('lesson');
+              }}
+              className="flex items-center justify-between p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-sm hover:shadow-xl transition-all border border-slate-100 dark:border-slate-700 group hover:-translate-y-1"
+            >
+              <span className="text-xl font-bold dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{lesson.title}</span>
+              <div className="p-3 bg-slate-50 dark:bg-slate-700 rounded-full group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 transition-colors">
+                 <ArrowRight className="text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 rtl:rotate-180" size={20} />
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderLesson = () => {
+    if (!selectedLesson) return null;
+    const stats = mastery[selectedLesson.id] || { correct: 0, wrong: 0 };
+    const needsReview = stats.wrong > 2 && stats.correct <= stats.wrong;
+
+    return (
+      <div className="w-full max-w-5xl mx-auto space-y-8 animate-in slide-in-from-right-8 duration-500">
+        <button onClick={() => setActiveTab(database.grammar.find(g=>g.id === selectedLesson.id) ? 'grammar' : 'rhetoric')} className="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-2 font-bold bg-white dark:bg-slate-800 w-fit px-4 py-2 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
+          <ArrowRight className="rtl:rotate-0" size={20} /> العودة للقائمة
+        </button>
+        
+        {/* Explanation Section */}
+        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-lg p-8 md:p-10 border border-slate-100 dark:border-slate-700">
+          <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-8">
+            <h2 className="text-3xl md:text-4xl font-black dark:text-white text-blue-700 dark:text-blue-400 border-r-4 border-blue-500 pr-4">{selectedLesson.title}</h2>
+            {needsReview && (
+              <div className="flex items-center gap-2 px-5 py-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl border border-red-200 dark:border-red-900/50 text-sm font-bold shadow-sm">
+                <AlertTriangle size={20} />
+                تنبيه: أخطاؤك متكررة، راجع الشرح بتركيز!
+              </div>
+            )}
+          </div>
+          <div className="prose dark:prose-invert max-w-none text-lg leading-loose whitespace-pre-line text-gray-800 dark:text-gray-200 bg-slate-50 dark:bg-slate-900/50 p-8 rounded-2xl border border-slate-200 dark:border-slate-700 font-medium">
+            {selectedLesson.content}
+          </div>
+        </div>
+
+        {/* Endless Practice Section */}
+        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-lg p-8 md:p-10 border border-slate-100 dark:border-slate-700 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-teal-500"></div>
+          
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-2xl font-black dark:text-white flex items-center gap-3">
+              <RefreshCw className="text-emerald-500" strokeWidth={2.5}/>
+              تدريب تفاعلي مستمر
+            </h3>
+            <div className="hidden sm:flex items-center gap-4 text-sm font-bold">
+              <span className="text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800">إجابات صحيحة: {stats.correct}</span>
+              <span className="text-red-600 bg-red-50 dark:bg-red-900/20 px-3 py-1 rounded-lg border border-red-200 dark:border-red-800">أخطاء: {stats.wrong}</span>
+            </div>
+          </div>
+
+          {endlessQuestion && (
+            <div className="space-y-8">
+              <div className="text-2xl font-bold dark:text-white bg-blue-50/50 dark:bg-slate-900/80 p-8 rounded-2xl border-2 border-blue-100 dark:border-slate-700 shadow-inner leading-relaxed">
+                {endlessQuestion.q}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {endlessOptions.map((opt, idx) => {
+                  let btnClass = "w-full text-right p-5 rounded-2xl text-lg font-bold transition-all border-2 ";
+                  
+                  if (showEndlessFeedback) {
+                    if (opt.originalIdx === endlessQuestion.answer) {
+                      btnClass += "bg-emerald-100 border-emerald-500 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-300 dark:border-emerald-500 shadow-md";
+                    } else if (showEndlessFeedback === 'wrong') {
+                      btnClass += "opacity-40 border-slate-200 dark:border-slate-700 text-gray-500 bg-slate-50 dark:bg-slate-800";
+                    } else {
+                      btnClass += "opacity-40 border-slate-200 dark:border-slate-700 text-gray-500 bg-slate-50 dark:bg-slate-800";
+                    }
+                  } else {
+                    btnClass += "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 hover:border-blue-500 hover:shadow-md hover:bg-blue-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200";
+                  }
+
+                  return (
+                    <button 
+                      key={idx} 
+                      disabled={showEndlessFeedback !== null}
+                      onClick={() => handleEndlessAnswer(opt.originalIdx)}
+                      className={btnClass}
+                    >
+                      {opt.text}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {showEndlessFeedback && (
+                <div className={`p-8 rounded-2xl flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-300 border-2 ${showEndlessFeedback === 'correct' ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-900/20' : 'border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-900/20'}`}>
+                  <div className="flex items-center gap-3 border-b border-black/5 dark:border-white/5 pb-4">
+                    {showEndlessFeedback === 'correct' ? <CheckCircle2 className="text-emerald-500" size={32} strokeWidth={2.5}/> : <XCircle className="text-red-500" size={32} strokeWidth={2.5}/>}
+                    <span className={`text-2xl font-black ${showEndlessFeedback === 'correct' ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
+                      {showEndlessFeedback === 'correct' ? 'إجابة صحيحة، وحش!' : 'إجابة خاطئة، ركز أكثر.'}
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-3 mt-2">
+                    <Info className="text-blue-500 mt-1 shrink-0" size={24} />
+                    <div>
+                      <span className="block font-black text-gray-900 dark:text-white text-lg mb-1">التفسير: </span>
+                      <p className="text-lg text-gray-700 dark:text-gray-300 font-medium leading-relaxed">
+                        {endlessQuestion.exp}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderQuizBuilder = () => (
+    <div className="w-full max-w-4xl mx-auto bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-8 md:p-12 border border-slate-100 dark:border-slate-700 animate-in slide-in-from-bottom-8 duration-500">
+      <div className="flex flex-col items-center text-center mb-12 border-b border-slate-100 dark:border-slate-700 pb-10">
+        <div className="p-5 bg-emerald-50 dark:bg-emerald-900/20 rounded-full mb-6 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50 shadow-sm">
+          <Settings size={48} strokeWidth={1.5} />
+        </div>
+        <h2 className="text-4xl font-black dark:text-white mb-4">تصميم الاختبار الشامل</h2>
+        <p className="text-lg text-gray-500 dark:text-gray-400 font-medium max-w-xl">اختر القواعد التي تود اختبار نفسك بها، وسيقوم النظام بتوليد اختبار يحاكي أسئلة الامتحان الوزاري.</p>
+      </div>
+
+      <div className="space-y-10">
+        <div className="bg-blue-50/50 dark:bg-slate-900/50 p-8 rounded-3xl border border-blue-100 dark:border-slate-700">
+          <h3 className="text-2xl font-black text-blue-700 dark:text-blue-400 mb-6 flex items-center gap-3">
+            <BookOpen size={24} /> قواعد النحو
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {database.grammar.map(rule => (
+              <label key={rule.id} className={`flex items-center gap-4 p-5 rounded-2xl cursor-pointer transition-all border-2 ${selectedRules.includes(rule.id) ? 'border-blue-500 bg-blue-100 dark:bg-blue-900/40 shadow-sm' : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-blue-300'}`}>
+                <input type="checkbox" className="w-6 h-6 accent-blue-600 rounded-md" checked={selectedRules.includes(rule.id)} onChange={() => handleToggleRule(rule.id)} />
+                <span className="font-bold text-lg dark:text-gray-100">{rule.title}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-purple-50/50 dark:bg-slate-900/50 p-8 rounded-3xl border border-purple-100 dark:border-slate-700">
+          <h3 className="text-2xl font-black text-purple-700 dark:text-purple-400 mb-6 flex items-center gap-3">
+            <Target size={24} /> قواعد البلاغة
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {database.rhetoric.map(rule => (
+              <label key={rule.id} className={`flex items-center gap-4 p-5 rounded-2xl cursor-pointer transition-all border-2 ${selectedRules.includes(rule.id) ? 'border-purple-500 bg-purple-100 dark:bg-purple-900/40 shadow-sm' : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-purple-300'}`}>
+                <input type="checkbox" className="w-6 h-6 accent-purple-600 rounded-md" checked={selectedRules.includes(rule.id)} onChange={() => handleToggleRule(rule.id)} />
+                <span className="font-bold text-lg dark:text-gray-100">{rule.title}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <button 
+          disabled={selectedRules.length === 0}
+          onClick={startQuiz}
+          className={`w-full py-6 rounded-2xl font-black text-2xl flex items-center justify-center gap-3 transition-all duration-300 ${selectedRules.length > 0 ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-xl hover:shadow-2xl hover:-translate-y-1' : 'bg-gray-200 dark:bg-slate-700 text-gray-400 cursor-not-allowed border border-gray-300 dark:border-gray-600'}`}
+        >
+          <Play fill="currentColor" size={28} />
+          بدء الاختبار
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderQuizActive = () => {
+    if (quizFinished) {
+      const percentage = Math.round((quizScore / quizQuestions.length) * 100);
+      let message = "";
+      if (percentage === 100) message = "أسطورة! جاهز للامتحان بقوة 🚀";
+      else if (percentage >= 80) message = "ممتاز! أخطاء بسيطة جداً 🌟";
+      else if (percentage >= 50) message = "جيد، راجع التفسيرات لتقوية نقاط ضعفك 📚";
+      else message = "لا بأس، هذا اختبار للتعلم. راجع القواعد وحاول مجدداً 💪";
+
+      return (
+        <div className="w-full max-w-4xl mx-auto bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 md:p-12 border border-slate-100 dark:border-slate-700 animate-in zoom-in duration-500">
+          <div className="text-center mb-12">
+            <Trophy size={100} strokeWidth={1} className={`mx-auto mb-6 ${percentage >= 80 ? 'text-yellow-500 drop-shadow-md' : 'text-gray-400'}`} />
+            <h2 className="text-4xl md:text-5xl font-black mb-4 dark:text-white">نتيجة الاختبار</h2>
+            <div className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-6 drop-shadow-sm">
+              {percentage}%
+            </div>
+            <p className="text-3xl font-bold text-gray-800 dark:text-gray-200 mb-4">{message}</p>
+            <p className="text-xl text-gray-500 dark:text-gray-400 font-medium bg-slate-100 dark:bg-slate-700 inline-block px-6 py-2 rounded-xl">أجبت بشكل صحيح على <span className="font-black text-emerald-600 dark:text-emerald-400">{quizScore}</span> من أصل <span className="font-black">{quizQuestions.length}</span></p>
+          </div>
+          
+          <div className="space-y-8 mt-12">
+            <h3 className="text-3xl font-black border-b-2 border-slate-100 dark:border-slate-700 pb-4 dark:text-white flex items-center gap-3">
+              <CheckCircle2 className="text-blue-500" /> المراجعة التفصيلية:
+            </h3>
+            {quizAnswers.map((ans, idx) => (
+              <div key={idx} className={`p-8 rounded-3xl border-2 shadow-sm ${ans.isCorrect ? 'border-emerald-200 bg-emerald-50/30 dark:border-emerald-900/50 dark:bg-emerald-900/10' : 'border-red-200 bg-red-50/30 dark:border-red-900/50 dark:bg-red-900/10'}`}>
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-sm font-black text-white bg-slate-800 dark:bg-slate-600 px-4 py-1.5 rounded-full shadow-sm">{ans.question.ruleTitle}</span>
+                  {ans.isCorrect ? <CheckCircle2 className="text-emerald-500" size={28}/> : <XCircle className="text-red-500" size={28}/>}
+                </div>
+                <p className="text-2xl font-bold dark:text-white mb-6 leading-relaxed">{ans.question.q}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-lg">
+                  <div className={`p-4 rounded-xl border-2 ${ans.isCorrect ? 'bg-emerald-100 border-emerald-300 dark:bg-emerald-900/40 dark:border-emerald-700' : 'bg-red-100 border-red-300 dark:bg-red-900/40 dark:border-red-700'}`}>
+                    <span className="block text-sm font-bold text-gray-600 dark:text-gray-400 mb-1">إجابتك:</span>
+                    <span className={`font-black ${ans.isCorrect ? 'text-emerald-800 dark:text-emerald-300' : 'text-red-800 dark:text-red-300'}`}>
+                      {ans.question.options[ans.selectedOriginalIdx] || "لم تجب"}
+                    </span>
+                  </div>
+                  {!ans.isCorrect && (
+                    <div className="p-4 rounded-xl bg-emerald-100 border-2 border-emerald-300 dark:bg-emerald-900/40 dark:border-emerald-700">
+                      <span className="block text-sm font-bold text-emerald-700 dark:text-emerald-400 mb-1">الإجابة الصحيحة:</span>
+                      <span className="font-black text-emerald-800 dark:text-emerald-300">
+                        {ans.question.options[ans.question.answer]}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {!ans.isCorrect && (
+                  <div className="mt-6 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-start gap-3">
+                     <Info className="text-blue-500 shrink-0 mt-0.5" size={20} />
+                    <p className="text-lg text-gray-800 dark:text-gray-200 font-medium">
+                      <span className="font-black text-blue-600 dark:text-blue-400 block mb-1">التفسير:</span>
+                      {ans.question.exp}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-12 flex flex-col sm:flex-row gap-4 justify-center">
+            <button onClick={() => setActiveTab('quiz-builder')} className="w-full sm:w-auto px-10 py-5 bg-slate-200 dark:bg-slate-700 text-gray-900 dark:text-white rounded-2xl font-black text-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors shadow-sm">إعداد اختبار جديد</button>
+            <button onClick={() => setActiveTab('home')} className="w-full sm:w-auto px-10 py-5 bg-blue-600 text-white rounded-2xl font-black text-xl hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl">العودة للرئيسية</button>
+          </div>
+        </div>
+      );
+    }
+
+    const currentQ = quizQuestions[currentQuizIndex];
+    return (
+      <div className="w-full max-w-4xl mx-auto bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 md:p-12 border border-slate-100 dark:border-slate-700 animate-in slide-in-from-right-8 duration-300">
+        <div className="flex justify-between items-center mb-10 border-b border-slate-100 dark:border-slate-700 pb-6">
+          <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 px-5 py-2.5 rounded-full font-black text-sm shadow-sm">{currentQ.ruleTitle}</span>
+          <span className="bg-slate-100 dark:bg-slate-700 px-5 py-2.5 rounded-full font-black text-sm text-gray-600 dark:text-gray-300 shadow-sm border border-slate-200 dark:border-slate-600">سؤال {currentQuizIndex + 1} من {quizQuestions.length}</span>
+        </div>
+        
+        {/* Progress Bar */}
+        <div className="w-full h-4 bg-slate-100 dark:bg-slate-700 rounded-full mb-12 overflow-hidden shadow-inner">
+          <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-500 ease-out" style={{width: `${((currentQuizIndex) / quizQuestions.length) * 100}%`}}></div>
+        </div>
+
+        <h3 className="text-3xl font-black leading-loose mb-12 dark:text-white bg-slate-50 dark:bg-slate-900 p-8 rounded-2xl border border-slate-100 dark:border-slate-800">{currentQ.q}</h3>
+        
+        <div className="grid grid-cols-1 gap-5">
+          {currentQ.displayOptions.map((opt, idx) => (
+            <button 
+              key={idx}
+              onClick={() => handleQuizAnswer(opt.originalIdx)}
+              className="w-full text-right p-6 rounded-2xl text-2xl font-bold border-2 border-slate-200 dark:border-slate-600 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-slate-700 transition-all duration-200 dark:text-gray-100 group shadow-sm hover:shadow-md relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-2 h-full bg-slate-200 dark:bg-slate-600 group-hover:bg-blue-500 transition-colors"></div>
+              <div className="flex items-center gap-6 pr-4">
+                <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-lg text-gray-500 font-black group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                  {idx + 1}
+                </div>
+                {opt.text}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div dir="rtl" className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-300 selection:bg-blue-200 selection:text-blue-900">
+      {/* Navbar */}
+      <nav className="sticky top-0 z-50 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700 px-6 py-4 shadow-sm">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div 
+            className="flex items-center gap-3 cursor-pointer group" 
+            onClick={() => setActiveTab('home')}
+          >
+            <div className="p-2.5 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl text-white shadow-lg group-hover:scale-105 transition-transform">
+              <BookOpen size={24} strokeWidth={2} />
+            </div>
+            <span className="text-2xl font-black tracking-tight hidden sm:block bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-700 dark:from-blue-400 dark:to-indigo-400">طريقك للـ 100</span>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <button onClick={() => setActiveTab('home')} className={`p-2.5 rounded-xl transition-all font-bold flex items-center gap-2 ${activeTab === 'home' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400 shadow-sm' : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300'}`}>
+              <Home size={22} /> <span className="hidden sm:inline">الرئيسية</span>
+            </button>
+            <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 mx-1"></div>
+            <button onClick={() => setDarkMode(!darkMode)} className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-600 dark:text-gray-300 transition-colors shadow-sm">
+              {darkMode ? <Sun size={22} /> : <Moon size={22} />}
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Content Area */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-10 md:py-16">
+        {activeTab === 'home' && renderHome()}
+        {activeTab === 'grammar' && renderCatalog('grammar')}
+        {activeTab === 'rhetoric' && renderCatalog('rhetoric')}
+        {activeTab === 'lesson' && renderLesson()}
+        {activeTab === 'quiz-builder' && renderQuizBuilder()}
+        {activeTab === 'quiz-active' && renderQuizActive()}
+      </main>
+    </div>
+  );
+}
